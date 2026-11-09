@@ -16,12 +16,26 @@ public final class OpenCVLoader {
     private OpenCVLoader() {
     }
 
-    public static void load() {
+    private static volatile boolean loaded = false;
+
+    public static synchronized void load() {
+        if (loaded) {
+            return;
+        }
+        loadOnce();
+        loaded = true;
+    }
+
+    private static void loadOnce() {
         try {
             System.loadLibrary(Core.NATIVE_LIBRARY_NAME);
             return;
         } catch (UnsatisfiedLinkError ignored) {
-            // Fall through to a more explicit resolution strategy.
+        }
+
+        // Uses the OpenCV that Maven downloads (works in VS Code with no OpenCV install)
+        if (tryLoadBundledOpenPnp()) {
+            return;
         }
 
         String explicitLibraryPath = System.getenv("OPENCV_LIB_PATH");
@@ -62,6 +76,16 @@ public final class OpenCVLoader {
         throw new IllegalStateException(
                 "OpenCV native library could not be found. Set OPENCV_HOME or OPENCV_LIB_PATH " +
                 "to the OpenCV installation directory or library path and try again.");
+    }
+
+    private static boolean tryLoadBundledOpenPnp() {
+        try {
+            Class<?> openPnp = Class.forName("nu.pattern.OpenCV");
+            openPnp.getMethod("loadLocally").invoke(null);
+            return true;
+        } catch (ReflectiveOperationException | LinkageError ignored) {
+            return false;
+        }
     }
 
     private static boolean tryLoadCandidates(String... candidates) {

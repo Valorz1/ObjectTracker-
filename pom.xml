@@ -30,7 +30,7 @@
     </dependencies>
 
     <build>
-        <sourceDirectory>src/com/objecttracker</sourceDirectory>
+        <sourceDirectory>src</sourceDirectory>
         <testSourceDirectory>src/test/java</testSourceDirectory>
         <plugins>
             <plugin>
@@ -39,6 +39,9 @@
                 <version>3.11.0</version>
                 <configuration>
                     <release>17</release>
+                    <excludes>
+                        <exclude>test/**</exclude>
+                    </excludes>
                 </configuration>
             </plugin>
             <plugin>

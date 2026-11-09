@@ -15,7 +15,10 @@ public class Main {
     private static final Scalar SCAN_LINE = new Scalar(90, 80, 0);
 
     public static void main(String[] args) {
-        int cameraIndex = parseCameraIndex(args);
+        int cameraIndex = parseIntOption(args, "--camera", 0);
+        boolean hd      = hasFlag(args, "--hd");
+        int width       = parseIntOption(args, "--width",  hd ? 1280 : CameraCapture.DEFAULT_WIDTH);
+        int height      = parseIntOption(args, "--height", hd ? 720  : CameraCapture.DEFAULT_HEIGHT);
         boolean showHud = !hasFlag(args, "--no-hud");
         boolean useServo = !hasFlag(args, "--no-servo");
 
@@ -24,7 +27,12 @@ public class Main {
             return;
         }
 
-        CameraCapture   camera   = new CameraCapture(cameraIndex);
+        if (hasFlag(args, "--list-cameras")) {
+            CameraCapture.listCameras(6);
+            return;
+        }
+
+        CameraCapture   camera   = new CameraCapture(cameraIndex, width, height);
         ColorTracker    detector = new ColorTracker();
         ColorTracker.applySystemOverrides();
         ServoController servos   = new ServoController();
@@ -43,11 +51,22 @@ public class Main {
         int    frameNum     = 0;
         boolean paused  = false;
         Mat frame = new Mat();
+        int emptyFrames = 0;
 
         while (true) {
             if (!paused) {
                 frame = camera.getFrame();
-                if (frame.empty()) continue;
+                if (frame.empty()) {
+                    // Camo returns empty frames until the phone is streaming.
+                    emptyFrames++;
+                    if (emptyFrames == 100) {
+                        System.out.println("No picture from camera " + cameraIndex
+                                + " yet. If this is Camo, open Camo Studio and check your phone is connected.");
+                    }
+                    sleepQuietly(30);
+                    continue;
+                }
+                emptyFrames = 0;
                 frameNum++;
             }
 
@@ -95,19 +114,26 @@ public class Main {
         HighGui.destroyAllWindows();
     }
 
-    private static int parseCameraIndex(String[] args) {
+    private static int parseIntOption(String[] args, String name, int defaultValue) {
         for (int i = 0; i < args.length; i++) {
-            String arg = args[i];
-            if ("--camera".equals(arg) && i + 1 < args.length) {
+            if (name.equals(args[i]) && i + 1 < args.length) {
                 try {
                     return Integer.parseInt(args[i + 1]);
                 } catch (NumberFormatException ex) {
-                    System.err.println("Invalid camera index: " + args[i + 1]);
-                    return 0;
+                    System.err.println("Invalid value for " + name + ": " + args[i + 1]);
+                    return defaultValue;
                 }
             }
         }
-        return 0;
+        return defaultValue;
+    }
+
+    private static void sleepQuietly(long millis) {
+        try {
+            Thread.sleep(millis);
+        } catch (InterruptedException ex) {
+            Thread.currentThread().interrupt();
+        }
     }
 
     private static boolean hasFlag(String[] args, String flag) {
@@ -122,6 +148,10 @@ public class Main {
     private static void printHelp() {
         System.out.println("Usage: java com.objecttracker.Main [options]");
         System.out.println("  --camera N         Select webcam index (default 0)");
+        System.out.println("  --hd               Request 1280x720 video");
+        System.out.println("  --width N          Request video width");
+        System.out.println("  --height N         Request video height");
+        System.out.println("  --list-cameras     List available cameras");
         System.out.println("  --no-hud           Hide HUD overlays");
         System.out.println("  --no-servo         Disable servo updates");
         System.out.println("  --help, -h         Show this help message");

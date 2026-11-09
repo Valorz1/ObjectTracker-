@@ -1,0 +1,29 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "type": "java",
+            "name": "Object Tracker (laptop webcam)",
+            "request": "launch",
+            "mainClass": "com.objecttracker.Main",
+            "projectName": "ObjectTracker",
+            "args": []
+        },
+        {
+            "type": "java",
+            "name": "Object Tracker (phone via Camo, 720p)",
+            "request": "launch",
+            "mainClass": "com.objecttracker.Main",
+            "projectName": "ObjectTracker",
+            "args": ["--camera", "1", "--hd"]
+        },
+        {
+            "type": "java",
+            "name": "List cameras",
+            "request": "launch",
+            "mainClass": "com.objecttracker.Main",
+            "projectName": "ObjectTracker",
+            "args": ["--list-cameras"]
+        }
+    ]
+}
