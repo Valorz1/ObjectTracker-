@@ -29,10 +29,22 @@ Real-time multi-colour object tracking for Java and OpenCV. The project detects 
 
 If you are using an IDE such as Eclipse or VS Code, ensure `OPENCV_HOME` is set before launching the app.
 
+## Tune color detection
+You can override the HSV filter ranges without editing the source code by passing JVM properties at launch time.
+
+Example:
+```bash
+./run.sh -Dobjecttracker.color.GREEN="40,70,70,85,255,255" \
+  -Dobjecttracker.color.BLUE="95,120,70,130,255,255" \
+  -Dobjecttracker.color.RED="0,120,70,10,255,255;170,120,70,180,255,255"
+```
+
+This is useful when lighting conditions change or the object colours are slightly different from the defaults.
+
 ## Controls
 - `Q` or `Esc`: quit
 - `H`: toggle HUD
 - `P` or `Space`: pause tracking
 
 ## Notes
-This version improves the project by removing the Windows-only classpath path and adding a more flexible OpenCV native library loader that checks common install locations automatically.
+This version improves the project by removing the Windows-only classpath path, adding a more flexible OpenCV native library loader, and making colour tuning configurable without changing the Java source.

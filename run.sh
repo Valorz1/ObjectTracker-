@@ -25,4 +25,4 @@ if [[ -z "$OPENCV_LIB_DIR" ]]; then
 fi
 
 javac -cp "$OPENCV_JAR" -d "$ROOT_DIR/bin" $(find "$ROOT_DIR/src" -name '*.java')
-java -Djava.library.path="$OPENCV_LIB_DIR" -cp "$ROOT_DIR/bin:$OPENCV_JAR" com.objecttracker.Main
+java -Djava.library.path="$OPENCV_LIB_DIR" -cp "$ROOT_DIR/bin:$OPENCV_JAR" com.objecttracker.Main "$@"

@@ -9,14 +9,13 @@ public class TrackingDisplay {
 
     public void drawDetection(Mat frame, ColorTracker.Detection d,
                               boolean isPrimary, int frameNum) {
-        if (d == null) return;
+        if (d == null || frame == null || frame.empty()) return;
         Rect r = d.box;
         Scalar color = d.displayColor;
         int thickness = isPrimary ? 2 : 1;
 
-        // Sci-fi corner brackets at each corner of the bounding box
-        int len = Math.max(10, Math.min(r.width, r.height) / 5);
         int x1 = r.x, y1 = r.y, x2 = r.x + r.width, y2 = r.y + r.height;
+        int len = Math.max(10, Math.min(r.width, r.height) / 5);
 
         Imgproc.line(frame, new Point(x1, y1), new Point(x1 + len, y1), color, thickness);
         Imgproc.line(frame, new Point(x1, y1), new Point(x1, y1 + len), color, thickness);
@@ -38,7 +37,12 @@ public class TrackingDisplay {
         String label = d.name + (isPrimary ? "  [PRIMARY]" : "");
         int[] baseline = new int[1];
         Size ts = Imgproc.getTextSize(label, Imgproc.FONT_HERSHEY_DUPLEX, 0.5, 1, baseline);
-        Point pos = new Point(r.x, Math.max(ts.height + 6, r.y - 6));
+
+        double labelX = Math.max(4, r.x);
+        double labelY = Math.max(ts.height + 6, r.y - 6);
+        if (labelY < 0) labelY = ts.height + 6;
+
+        Point pos = new Point(labelX, labelY);
         Imgproc.rectangle(frame,
                 new Point(pos.x - 2, pos.y - ts.height - 4),
                 new Point(pos.x + ts.width + 4, pos.y + 4),
@@ -46,8 +50,9 @@ public class TrackingDisplay {
         Imgproc.putText(frame, label, pos,
                 Imgproc.FONT_HERSHEY_DUPLEX, 0.5, LABEL_TEXT, 1);
 
+        double areaY = Math.min(frame.rows() - 4, r.y + r.height + 14);
         Imgproc.putText(frame, String.format("A:%d", (int) d.area),
-                new Point(r.x, Math.min(frame.rows() - 4, r.y + r.height + 14)),
+                new Point(r.x, areaY),
                 Imgproc.FONT_HERSHEY_SIMPLEX, 0.4, color, 1);
     }
 

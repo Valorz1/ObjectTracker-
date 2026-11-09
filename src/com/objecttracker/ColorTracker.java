@@ -4,6 +4,7 @@ import org.opencv.core.*;
 import org.opencv.imgproc.Imgproc;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 
 public class ColorTracker {
 
@@ -58,7 +59,60 @@ public class ColorTracker {
                 .range(131, 70, 50, 160, 255, 255));
     }
 
+    public static List<double[]> parseRanges(String configured) {
+        if (configured == null || configured.trim().isEmpty()) {
+            return new ArrayList<>();
+        }
+
+        List<double[]> ranges = new ArrayList<>();
+        String[] rangeSpecs = configured.split(";");
+        for (String rangeSpec : rangeSpecs) {
+            String trimmed = rangeSpec.trim();
+            if (trimmed.isEmpty()) {
+                continue;
+            }
+
+            String[] values = trimmed.split(",");
+            if (values.length != 6) {
+                throw new IllegalArgumentException(
+                        "Invalid HSV range format. Expected six comma-separated values in the form lh,ls,lv,uh,us,uv.");
+            }
+
+            double[] numeric = new double[6];
+            for (int i = 0; i < values.length; i++) {
+                numeric[i] = Double.parseDouble(values[i].trim());
+            }
+            ranges.add(numeric);
+        }
+
+        if (ranges.isEmpty()) {
+            throw new IllegalArgumentException(
+                    "Invalid HSV range format. Expected six comma-separated values in the form lh,ls,lv,uh,us,uv.");
+        }
+        return ranges;
+    }
+
+    public static void applySystemOverrides() {
+        for (ColorProfile profile : PROFILES) {
+            String propertyName = "objecttracker.color." + profile.name.toUpperCase(Locale.ROOT);
+            String configured = System.getProperty(propertyName);
+            if (configured == null || configured.trim().isEmpty()) {
+                continue;
+            }
+
+            profile.lowers.clear();
+            profile.uppers.clear();
+
+            List<double[]> rawRanges = parseRanges(configured);
+            for (double[] values : rawRanges) {
+                profile.lowers.add(new Scalar(values[0], values[1], values[2]));
+                profile.uppers.add(new Scalar(values[3], values[4], values[5]));
+            }
+        }
+    }
+
     private static final double MIN_CONTOUR_AREA = 800.0;
+    private static final int MIN_BBOX_DIMENSION = 10;
 
     // Reused per-frame buffers so we don't allocate Mats in the hot loop
     private final Mat hsv      = new Mat();
@@ -69,6 +123,10 @@ public class ColorTracker {
 
     public List<Detection> detect(Mat frame) {
         List<Detection> detections = new ArrayList<>();
+        if (frame == null || frame.empty()) {
+            return detections;
+        }
+
         Imgproc.cvtColor(frame, hsv, Imgproc.COLOR_BGR2HSV);
 
         for (ColorProfile profile : PROFILES) {
@@ -95,19 +153,27 @@ public class ColorTracker {
             MatOfPoint largest = null;
             double largestArea = MIN_CONTOUR_AREA;
             for (MatOfPoint c : contours) {
-                double a = Imgproc.contourArea(c);
-                if (a > largestArea) {
-                    largestArea = a;
+                double area = Imgproc.contourArea(c);
+                if (area <= MIN_CONTOUR_AREA) {
+                    continue;
+                }
+
+                Rect box = Imgproc.boundingRect(c);
+                if (box.width < MIN_BBOX_DIMENSION || box.height < MIN_BBOX_DIMENSION) {
+                    continue;
+                }
+
+                if (area > largestArea) {
+                    largestArea = area;
                     largest = c;
                 }
             }
 
             if (largest != null) {
-                detections.add(new Detection(
-                        profile.name,
-                        Imgproc.boundingRect(largest),
-                        profile.displayBGR,
-                        largestArea));
+                Rect box = Imgproc.boundingRect(largest);
+                if (box.width >= MIN_BBOX_DIMENSION && box.height >= MIN_BBOX_DIMENSION) {
+                    detections.add(new Detection(profile.name, box, profile.displayBGR, largestArea));
+                }
             }
 
             for (MatOfPoint c : contours) c.release();

@@ -15,8 +15,18 @@ public class Main {
     private static final Scalar SCAN_LINE = new Scalar(90, 80, 0);
 
     public static void main(String[] args) {
-        CameraCapture   camera   = new CameraCapture(0);
+        int cameraIndex = parseCameraIndex(args);
+        boolean showHud = !hasFlag(args, "--no-hud");
+        boolean useServo = !hasFlag(args, "--no-servo");
+
+        if (hasFlag(args, "--help") || hasFlag(args, "-h")) {
+            printHelp();
+            return;
+        }
+
+        CameraCapture   camera   = new CameraCapture(cameraIndex);
         ColorTracker    detector = new ColorTracker();
+        ColorTracker.applySystemOverrides();
         ServoController servos   = new ServoController();
         TrackingDisplay display  = new TrackingDisplay();
 
@@ -25,13 +35,12 @@ public class Main {
             return;
         }
 
-        System.out.println("Object Tracker v2.0  |  [Q/ESC] quit  [H] HUD  [P/Space] pause");
+        System.out.println("Object Tracker v2.0  |  [Q/ESC] quit  [H] HUD  [P/Space] pause  [--camera N] select camera");
 
         long   lastFpsTime  = System.nanoTime();
         int    frameCounter = 0;
         double fps          = 0.0;
         int    frameNum     = 0;
-        boolean showHud = true;
         boolean paused  = false;
         Mat frame = new Mat();
 
@@ -56,7 +65,7 @@ public class Main {
                 display.drawDetection(frame, detections.get(i), i == 0, frameNum);
             }
 
-            if (primary != null && !paused) {
+            if (primary != null && !paused && useServo) {
                 servos.adjustToTarget(
                         primary.box.x + primary.box.width  / 2.0,
                         primary.box.y + primary.box.height / 2.0);
@@ -71,7 +80,7 @@ public class Main {
             }
 
             if (showHud) {
-                drawHud(frame, fps, detections, primary, servos, paused, frameNum);
+                drawHud(frame, fps, detections, primary, servos, paused, frameNum, useServo);
             }
 
             HighGui.imshow("Object Tracker v2.0", frame);
@@ -86,11 +95,43 @@ public class Main {
         HighGui.destroyAllWindows();
     }
 
+    private static int parseCameraIndex(String[] args) {
+        for (int i = 0; i < args.length; i++) {
+            String arg = args[i];
+            if ("--camera".equals(arg) && i + 1 < args.length) {
+                try {
+                    return Integer.parseInt(args[i + 1]);
+                } catch (NumberFormatException ex) {
+                    System.err.println("Invalid camera index: " + args[i + 1]);
+                    return 0;
+                }
+            }
+        }
+        return 0;
+    }
+
+    private static boolean hasFlag(String[] args, String flag) {
+        for (String arg : args) {
+            if (flag.equals(arg)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private static void printHelp() {
+        System.out.println("Usage: java com.objecttracker.Main [options]");
+        System.out.println("  --camera N         Select webcam index (default 0)");
+        System.out.println("  --no-hud           Hide HUD overlays");
+        System.out.println("  --no-servo         Disable servo updates");
+        System.out.println("  --help, -h         Show this help message");
+    }
+
     private static void drawHud(Mat frame, double fps,
                                 List<ColorTracker.Detection> dets,
                                 ColorTracker.Detection primary,
                                 ServoController servos,
-                                boolean paused, int frameNum) {
+                                boolean paused, int frameNum, boolean useServo) {
         int w = frame.cols();
         int h = frame.rows();
 
@@ -130,9 +171,14 @@ public class Main {
                     Imgproc.FONT_HERSHEY_SIMPLEX, 0.5, HUD_WHITE, 1);
         }
 
-        Imgproc.putText(frame,
-                String.format("PAN %5.1f°  TILT %5.1f°", servos.getPan(), servos.getTilt()),
-                new Point(10, h - 14), Imgproc.FONT_HERSHEY_SIMPLEX, 0.5, HUD_CYAN, 1);
+        if (useServo) {
+            Imgproc.putText(frame,
+                    String.format("PAN %5.1f°  TILT %5.1f°", servos.getPan(), servos.getTilt()),
+                    new Point(10, h - 14), Imgproc.FONT_HERSHEY_SIMPLEX, 0.5, HUD_CYAN, 1);
+        } else {
+            Imgproc.putText(frame, "SERVO DISABLED",
+                    new Point(10, h - 14), Imgproc.FONT_HERSHEY_SIMPLEX, 0.5, HUD_AMBER, 1);
+        }
         Imgproc.putText(frame, "FRAME #" + frameNum,
                 new Point(w - 130, h - 14), Imgproc.FONT_HERSHEY_SIMPLEX, 0.5, HUD_WHITE, 1);
 
