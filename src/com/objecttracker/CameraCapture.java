@@ -9,7 +9,7 @@ public class CameraCapture {
     private final boolean opened;
 
     public CameraCapture(int deviceIndex) {
-        System.loadLibrary(Core.NATIVE_LIBRARY_NAME);
+        OpenCVLoader.load();
         camera = new VideoCapture(deviceIndex);
         if (camera.isOpened()) {
             camera.set(Videoio.CAP_PROP_FRAME_WIDTH,  640);
